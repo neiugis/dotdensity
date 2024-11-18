@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dot Density Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 100vh;
+        }
+
+        
+          /* Optional: adjust the values below to change the appearance of the legend */
+  .legend {
+      padding: 6px 8px;
+      line-height: 18px;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      border-radius: 5px;
+  }
+
+   /* Optional: adjust the values below to change the appearance of the legend color boxes */
+   .legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.7;
+  }
+        
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+    <script src="london.js"></script> <!-- Your GeoJSON data -->
+    <script>
+        // Initialize the map
+        const map = L.map('map').setView([51.48,-0.07], 10); // Adjust view based on your region
+
+        // Add a basemap
+       var Esri_WorldGrayCanvas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+	attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+	maxZoom: 16
+}).addTo(map);
+        
+        
+        function style(feature) {
+    return {
+        fillColor: null,
+        weight: 1,
+        opacity: 1,
+        color: 'black',
+        dashArray: '3',
+        fillOpacity: 0
+    };
+}
+
+        // Load GeoJSON data
+        const geojsonData = L.geoJson(data, {
+                style: style,
+            }).addTo(map); // Replace with your GeoJSON object
+        
+        
+        // Function to generate random points within a polygon
+function randomPointsInPolygon(polygon, count) {
+    const points = [];
+    const bounds = d3.geoBounds(polygon);
+    const [minX, minY] = bounds[0];
+    const [maxX, maxY] = bounds[1];
+
+    while (points.length < count) {
+        const point = [Math.random() * (maxX - minX) + minX, Math.random() * (maxY - minY) + minY];
+        if (d3.geoContains(polygon, point)) {
+            points.push(point);
+        }
+    }
+    return points;
+}
+        
+        // Plot dots for each feature
+data.features.forEach(feature => {
+    const properties = feature.properties;
+    const geometry = feature.geometry;
+
+    // Specify population groups and colors
+    const populationGroups = [
+        { key: 'White', color: 'red' },
+        { key: 'Black', color: 'blue' },
+        { key: 'Asian', color: 'green' }
+    ];
+
+    populationGroups.forEach(group => {
+        const count = properties[group.key]; // Population count for the group
+        if (count > 0) {
+            const dots = randomPointsInPolygon(feature, count / 500); // Adjust dot density divisor
+            dots.forEach(dot => {
+                L.circleMarker([dot[1], dot[0]], {
+                    radius: 1,
+                    fillColor: group.color,
+                    color: null,
+                    fillOpacity: 0.8
+                }).addTo(map);
+            });
+        }
+    });
+});
+
+// Add a legend to the map
+const legend = L.control({ position: 'bottomright' });
+
+legend.onAdd = function () {
+    const div = L.DomUtil.create('div', 'info legend');
+    
+    const populationGroups = [
+        { key: 'White', color: 'red' },
+        { key: 'Black', color: 'blue' },
+        { key: 'Asian', color: 'green' }
+    ];
+    
+    populationGroups.forEach(group => {
+        div.innerHTML += `<i style="background:${group.color};width:10px;height:10px;display:inline-block;"></i> ${group.key}<br>`;
+    });
+    return div;
+};
+
+legend.addTo(map);
+
+    </script>
+</body>
+</html>
